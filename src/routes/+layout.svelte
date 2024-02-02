@@ -6,6 +6,7 @@
 </script>
 
 {$userDetails.displayName}
+{$userDetails.userId}
 
 <div class="outline-2 outline-[#000] outline-dotted m-4 flex flex-col gap-3">
 	header

@@ -14,10 +14,17 @@
 
 	// Importing Firebase Dependencies
 	import { onAuthStateChanged } from 'firebase/auth';
-	import { auth, db, storage } from '../../../lib/firebase';
+	import { auth, db } from '../../../lib/firebase';
+	import { initializeApp } from 'firebase/app';
+	import { getStorage } from 'firebase/storage';
+	import { getDatabase } from 'firebase/database';
+
 	import { onMount } from 'svelte';
 	import { ref, set, get, child, remove } from 'firebase/database';
 	import { ref as storageRef, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
+
+	// For User's own Firebase
+	// TODO add user own Firebase
 
 	// Setting Up Toast Notifications
 	var notyf = new Notyf({
@@ -30,6 +37,7 @@
 
 	// Client Side Compression Lib
 	import imageCompression from 'browser-image-compression';
+	import { userDetails } from '../../../lib/store';
 
 	// Defining Reactive Variables
 	let currentAnnouncement;
@@ -54,17 +62,54 @@
 	let uid;
 	let thumbnailDownloadURL;
 	let currentAnnouncementForDeletion = '';
+	let userId = '';
+	let userFirebaseConfig = {};
 
-	// Getting data on page load
-	onMount(() => {
-		getData();
-	});
+	let userApp;
+	let userStorage;
+	let userDb;
+
+	// First thing that needs to be done
 
 	// Check for authentication status and change accordingly
 	onAuthStateChanged(auth, (user) => {
 		if (user) {
 			showLoggedIn = true;
 			console.log(user);
+			userId = user.uid;
+
+			console.error(userId);
+			get(ref(db, 'users/' + userId)).then((snapshot) => {
+				snapshot.forEach((childSnapshot) => {
+					console.warn(childSnapshot.val());
+
+					let values = childSnapshot
+						.val()
+						.replaceAll('const firebaseConfig = ', '')
+						.replaceAll('\\', '')
+						.replace(';', '')
+						.substring(1);
+
+					let valuesFinal = values.substring(0, values.length - 1);
+
+					valuesFinal = valuesFinal
+						.replace('apiKey', '"apiKey"')
+						.replace('authDomain', '"authDomain"')
+						.replace('databaseURL', '"databaseURL"')
+						.replace('projectId', '"projectId"')
+						.replace('storageBucket', '"storageBucket"')
+						.replace('messagingSenderId', '"messagingSenderId"')
+						.replace('appId', '"appId"');
+
+					userFirebaseConfig = JSON.parse(valuesFinal);
+
+					userApp = initializeApp(userFirebaseConfig, 'user');
+					userStorage = getStorage(userApp);
+					userDb = getDatabase(userApp);
+
+					getData();
+				});
+			});
 		} else {
 			showLoggedIn = false;
 			window.location = '/';
@@ -79,7 +124,7 @@
 		normalAnnouncements = [];
 		pinnedAnnouncementsTitles = [];
 		normalAnnouncementsTitles = [];
-		get(ref(db, 'announcements/')).then((snapshot) => {
+		get(ref(userDb, 'announcements/')).then((snapshot) => {
 			// Fetching the existing announcements from the database
 			if (snapshot.exists()) {
 				announcements = snapshot.val();
@@ -175,7 +220,7 @@
 							console.log(titleAnnouncement);
 
 							let storeRef = storageRef(
-								storage,
+								userStorage,
 								`announcements/${titleAnnouncement.replaceAll(' ', '_')}/${file.name}`
 							);
 							console.log(storeRef);
@@ -225,7 +270,7 @@
 							console.log(titleAnnouncement);
 
 							const storeRef = storageRef(
-								storage,
+								userStorage,
 								`announcements/${titleAnnouncement.replaceAll(' ', '_')}/${file.name}`
 							);
 							console.log(storeRef);
@@ -298,7 +343,7 @@
 							console.log(editAnnouncementTitle);
 
 							const storeRef = storageRef(
-								storage,
+								userStorage,
 								`announcements/${editAnnouncementTitle.replaceAll(' ', '_')}/${file.name}`
 							);
 							console.log(storeRef);
@@ -348,7 +393,7 @@
 							console.log(editAnnouncementTitle);
 
 							const storeRef = storageRef(
-								storage,
+								userStorage,
 								`announcements/${editAnnouncementTitle.replaceAll(' ', '_')}/${file.name}`
 							);
 							console.log(storeRef);
@@ -421,7 +466,7 @@
 			console.log(`compressedFile size ${compressedFile.size / 1024 / 1024} MB`);
 
 			let storeRef = storageRef(
-				storage,
+				userStorage,
 				`announcements/${titleAnnouncement.replaceAll(' ', '_')}/${thumbnailLocation[0].name}`
 			);
 			const uploadTask = uploadBytesResumable(storeRef, compressedFile);
@@ -436,7 +481,7 @@
 					getDownloadURL(uploadTask.snapshot.ref)
 						.then((downloadURL) => {
 							// Create a promise to resolve with the download URL when the upload is complete
-							set(ref(db, 'announcements/' + titleAnnouncement.replaceAll(' ', '_')), {
+							set(ref(userDb, 'announcements/' + titleAnnouncement.replaceAll(' ', '_')), {
 								title: titleAnnouncement,
 								data: editorData,
 								pinned: pinned,
@@ -474,7 +519,7 @@
 	function editAnnouncement(title) {
 		// Fetching announcement to edit
 
-		get(ref(db, 'announcements/' + title.replaceAll(' ', '_'))).then((snapshot) => {
+		get(ref(userDb, 'announcements/' + title.replaceAll(' ', '_'))).then((snapshot) => {
 			currentAnnouncement = snapshot.val();
 			editor2.blocks.render(currentAnnouncement.data);
 			document.querySelector('[data-editAnnouncement]').showModal();
@@ -513,9 +558,8 @@
 				const compressedFile = await imageCompression(imageFile, options);
 				console.log('compressedFile instanceof Blob', compressedFile instanceof Blob);
 				console.log(`compressedFile size ${compressedFile.size / 1024 / 1024} MB`);
-
 				let storeRef = storageRef(
-					storage,
+					userStorage,
 					`announcements/${titleAnnouncement.replaceAll(' ', '_')}/${editThumbnailLocation[0].name}`
 				);
 				const uploadTask = uploadBytesResumable(storeRef, compressedFile);
@@ -531,7 +575,7 @@
 							.then((downloadURL) => {
 								// Create a promise to resolve with the download URL when the upload is complete
 								// Code to change the spaces to underscores (_) to prevent errors while posting to the database
-								set(ref(db, 'announcements/' + editAnnouncementTitle.replaceAll(' ', '_')), {
+								set(ref(userDb, 'announcements/' + editAnnouncementTitle.replaceAll(' ', '_')), {
 									title: editAnnouncementTitle,
 									data: editorData,
 									pinned: editPinned,
@@ -560,7 +604,7 @@
 				console.log(error);
 			}
 		} else {
-			set(ref(db, 'announcements/' + editAnnouncementTitle.replaceAll(' ', '_')), {
+			set(ref(userDb, 'announcements/' + editAnnouncementTitle.replaceAll(' ', '_')), {
 				title: editAnnouncementTitle,
 				data: editorData,
 				pinned: editPinned,
@@ -926,7 +970,7 @@ what
 						class="p-3 rounded-lg hover:bg-[#202020] bg-[#171717] hover:text-[#ff9c9c] text-white group animate-all duration-200"
 						on:click={() => {
 							remove(
-								ref(db, 'announcements/' + currentAnnouncementForDeletion.replaceAll(' ', '_'))
+								ref(userDb, 'announcements/' + currentAnnouncementForDeletion.replaceAll(' ', '_'))
 							).then(() => {
 								currentAnnouncementForDeletion = undefined;
 							});

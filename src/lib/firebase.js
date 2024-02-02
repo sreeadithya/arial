@@ -70,12 +70,12 @@ onAuthStateChanged(auth, (user) => {
 		showLoggedOut = false;
 		user = user;
 		console.log(user.displayName);
-		userDetails.set({ displayName: user.displayName });
+		userDetails.set({ displayName: user.displayName, userId: user.uid });
 	} else {
 		showLoggedIn = false;
 		showLoggedOut = true;
 		user = user;
-		userDetails.set({ displayName: '' });
+		userDetails.set({ displayName: '', userId: '' });
 	}
 });
 
