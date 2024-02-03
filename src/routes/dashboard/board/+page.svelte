@@ -19,7 +19,6 @@
 	import { getStorage } from 'firebase/storage';
 	import { getDatabase } from 'firebase/database';
 
-	import { onMount } from 'svelte';
 	import { ref, set, get, child, remove } from 'firebase/database';
 	import { ref as storageRef, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 
