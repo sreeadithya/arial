@@ -1,6 +1,6 @@
 <script>
 	import { auth, db, storage } from '../../../lib/firebase';
-	import { ref, set, get, child, remove } from 'firebase/database';
+	import { ref, set, get, child, remove, update } from 'firebase/database';
 	import { ref as storageRef, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 	import { onAuthStateChanged } from 'firebase/auth';
 	import { userDetails } from '../../../lib/store';
@@ -20,14 +20,12 @@
 			userId = user.uid;
 
 			get(ref(db, 'users/' + userId)).then((snapshot) => {
-				snapshot.forEach((childSnapshot) => {
-					userFirebaseConfigRaw = childSnapshot.val().substring(1);
-					userFirebaseConfigRaw = userFirebaseConfigRaw.substring(
-						0,
-						userFirebaseConfigRaw.length - 1
-					);
-					console.log(userFirebaseConfigRaw);
-				});
+				userFirebaseConfigRaw = snapshot.val().firebaseConfig.substring(1);
+				userFirebaseConfigRaw = userFirebaseConfigRaw.substring(
+					0,
+					userFirebaseConfigRaw.length - 1
+				);
+				console.log(userFirebaseConfigRaw);
 			});
 		} else {
 			showLoggedIn = false;
@@ -40,7 +38,7 @@
 	function submitFirebaseConfig() {
 		console.log(userFirebaseConfigRaw);
 
-		set(ref(db, 'users/' + userId), {
+		update(ref(db, 'users/' + userId), {
 			firebaseConfig: JSON.stringify(userFirebaseConfigRaw)
 		}).then(() => {
 			console.log('lmao success');

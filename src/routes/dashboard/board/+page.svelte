@@ -14,7 +14,7 @@
 
 	// Importing Firebase Dependencies
 	import { onAuthStateChanged } from 'firebase/auth';
-	import { auth, db } from '../../../lib/firebase';
+	import { auth, db, logOutButton } from '../../../lib/firebase';
 	import { initializeApp } from 'firebase/app';
 	import { getStorage } from 'firebase/storage';
 	import { getDatabase } from 'firebase/database';
@@ -68,6 +68,10 @@
 	let userStorage;
 	let userDb;
 
+	let noFirebaseKey = true;
+
+	let boardPurchased = false;
+
 	// First thing that needs to be done
 
 	// Check for authentication status and change accordingly
@@ -79,35 +83,40 @@
 
 			console.error(userId);
 			get(ref(db, 'users/' + userId)).then((snapshot) => {
-				snapshot.forEach((childSnapshot) => {
-					console.warn(childSnapshot.val());
+				boardPurchased = snapshot.val().boardPurchased;
 
-					let values = childSnapshot
-						.val()
-						.replaceAll('const firebaseConfig = ', '')
-						.replaceAll('\\', '')
-						.replace(';', '')
-						.substring(1);
+				if (snapshot.val().firebaseConfig && snapshot.val().firebaseConfig != '') {
+					noFirebaseKey = false;
+				} else {
+					noFirebaseKey = true;
+					return;
+				}
 
-					let valuesFinal = values.substring(0, values.length - 1);
+				let values = snapshot
+					.val()
+					.firebaseConfig.replaceAll('const firebaseConfig = ', '')
+					.replaceAll('\\', '')
+					.replace(';', '')
+					.substring(1);
 
-					valuesFinal = valuesFinal
-						.replace('apiKey', '"apiKey"')
-						.replace('authDomain', '"authDomain"')
-						.replace('databaseURL', '"databaseURL"')
-						.replace('projectId', '"projectId"')
-						.replace('storageBucket', '"storageBucket"')
-						.replace('messagingSenderId', '"messagingSenderId"')
-						.replace('appId', '"appId"');
+				let valuesFinal = values.substring(0, values.length - 1);
 
-					userFirebaseConfig = JSON.parse(valuesFinal);
+				valuesFinal = valuesFinal
+					.replace('apiKey', '"apiKey"')
+					.replace('authDomain', '"authDomain"')
+					.replace('databaseURL', '"databaseURL"')
+					.replace('projectId', '"projectId"')
+					.replace('storageBucket', '"storageBucket"')
+					.replace('messagingSenderId', '"messagingSenderId"')
+					.replace('appId', '"appId"');
 
-					userApp = initializeApp(userFirebaseConfig, 'user');
-					userStorage = getStorage(userApp);
-					userDb = getDatabase(userApp);
+				userFirebaseConfig = JSON.parse(valuesFinal);
 
-					getData();
-				});
+				userApp = initializeApp(userFirebaseConfig, 'user');
+				userStorage = getStorage(userApp);
+				userDb = getDatabase(userApp);
+
+				getData();
 			});
 		} else {
 			showLoggedIn = false;
@@ -634,14 +643,19 @@
 </script>
 
 <!-- ! HTML code to display the announcements page-->
-what
-{#if showLoggedIn}
+{#if showLoggedIn && !noFirebaseKey && boardPurchased}
 	<!-- ? Checking for authentication of the user-->
 	<main
 		class="pt-5 px-10 m-5 w-[100%] rounded-xl bg-black text-black max-[1000px]:w-[102vw] max-[1000px]:m-0 max-[1000px]:pt-0"
 	>
 		<div class="h-[90vh] overflow-auto max-[1000px]:h-max max-[1000px]:overflow-scroll">
 			<div class="flex justify-between pt-5">
+				<button
+					class="text-white"
+					on:click={() => {
+						logOutButton();
+					}}>log out brudda?</button
+				>
 				<p class="text-[30px] text-[#ffffffbb]"><b>Pinned</b></p>
 
 				<button
@@ -1000,6 +1014,13 @@ what
 			</div>
 		</dialog>
 	</main>
+{/if}
+{#if showLoggedIn && noFirebaseKey}
+	no firebase key my man
+{/if}
+
+{#if showLoggedIn && !boardPurchased}
+	you aint buy this shit my brudda
 {/if}
 
 <style>

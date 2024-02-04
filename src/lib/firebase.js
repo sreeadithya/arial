@@ -36,7 +36,7 @@ let user = auth.currentUser;
 const provider = new GoogleAuthProvider();
 
 async function logInButton() {
-	signInWithPopup(auth, provider)
+	await signInWithPopup(auth, provider)
 		.then((result) => {
 			const credential = GoogleAuthProvider.credentialFromResult(result);
 			const user = result.user;
